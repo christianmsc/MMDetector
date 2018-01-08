@@ -36,49 +36,41 @@ public class MethodTargets {
 		return targets;
 	}
 
+	public void moveMethod(IMethod method) {
+		try {
 
-	public void moveMethod(){
-		try{
-			
-			boolean achou = false;
-			
-			MoveInstanceMethodProcessor processor = new MoveInstanceMethodProcessor(getMethod(),
-					JavaPreferencesSettings.getCodeGenerationSettings(getMethod().getJavaProject()));
-	
+			MoveInstanceMethodProcessor processor = new MoveInstanceMethodProcessor(method,
+					JavaPreferencesSettings.getCodeGenerationSettings(method.getJavaProject()));
+
 			processor.checkInitialConditions(SingletonNullProgressMonitor.getNullProgressMonitor());
-	
+
 			IVariableBinding[] targets = processor.getPossibleTargets();
-	
+
 			for (IVariableBinding target : targets) {
-				if(achou){
+				if (target.getType().getQualifiedName().compareTo(getTargets().get(0)) == 0) {
+					processor.setTarget(target);
+					processor.setInlineDelegator(true);
+					processor.setRemoveDelegator(true);
+					processor.setDeprecateDelegates(false);
+
+					Refactoring refactoring = new MoveRefactoring(processor);
+					refactoring.checkInitialConditions(SingletonNullProgressMonitor.getNullProgressMonitor());
+
+					final CreateChangeOperation create = new CreateChangeOperation(
+							new CheckConditionsOperation(refactoring, CheckConditionsOperation.ALL_CONDITIONS),
+							RefactoringStatus.FATAL);
+
+					PerformChangeOperation perform = new PerformChangeOperation(create);
+
+					ResourcesPlugin.getWorkspace().run(perform, SingletonNullProgressMonitor.getNullProgressMonitor());
+
+					CSVUtils.writeInGoldset(getMethod().getDeclaringType().getFullyQualifiedName() + "::"
+							+ getMethod().getElementName(), target.getType().getQualifiedName());
+
 					break;
 				}
-				for (String targetDetected : getTargets()) {
-					if (targetDetected.compareTo(target.getType().getQualifiedName()) == 0) {
-						achou = true;
-						processor.setTarget(target);
-						processor.setInlineDelegator(true);
-						processor.setRemoveDelegator(true);
-						processor.setDeprecateDelegates(false);
-	
-						Refactoring refactoring = new MoveRefactoring(processor);
-						refactoring.checkInitialConditions(SingletonNullProgressMonitor.getNullProgressMonitor());
-	
-						final CreateChangeOperation create = new CreateChangeOperation(
-								new CheckConditionsOperation(refactoring, CheckConditionsOperation.ALL_CONDITIONS),
-								RefactoringStatus.FATAL);
-	
-						PerformChangeOperation perform = new PerformChangeOperation(create);
-	
-						ResourcesPlugin.getWorkspace().run(perform, SingletonNullProgressMonitor.getNullProgressMonitor());
-						
-						CSVUtils.writeInGoldset(getMethod().getDeclaringType().getFullyQualifiedName()+"::"+getMethod().getElementName(), target.getType().getQualifiedName());
-						
-						break;
-					}
-				}
 			}
-		} catch(Exception e){
+		} catch (Exception e) {
 			return;
 		}
 	}

@@ -8,11 +8,17 @@ import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.internal.resources.Project;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IProjectDescription;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IResourceVisitor;
+import org.eclipse.core.resources.IWorkspaceRoot;
+import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
@@ -28,6 +34,7 @@ import org.eclipse.ui.handlers.HandlerUtil;
 import mmd.ast.DependencyVisitor;
 import mmd.persistence.MethodTargets;
 import mmd.refactorings.MoveMethod;
+import mmd.utils.SingletonNullProgressMonitor;
 
 @SuppressWarnings("restriction")
 public class SampleHandler extends AbstractHandler {
@@ -35,7 +42,7 @@ public class SampleHandler extends AbstractHandler {
 	private ArrayList<IMethod> allMethods;
 	private ArrayList<MethodTargets> methodsTargets;
 	public static ArrayList<MethodTargets> newMethodsTargets;
-	//private static final int GOLDSET_SIZE = 25;
+	public static IJavaProject projectOriginal;
 	
 	@Override
 	public Object execute(ExecutionEvent event) throws ExecutionException {
@@ -48,9 +55,14 @@ public class SampleHandler extends AbstractHandler {
 
 			hideView();
 
-			IProject iProject = getProjectFromWorkspace(event);
+			projectOriginal = getProjectFromWorkspace(event);
+			
+			// Faz uma copia do projeto
+			System.out.print("Copiando projeto " + projectOriginal.getElementName() + "... ");
+			IJavaProject projectCopy = cloneProject(projectOriginal.getProject());
+			System.out.println("OK");
 
-			getClassesMethods(iProject);
+			getClassesMethods(projectCopy.getProject());
 
 			MoveMethod mv = new MoveMethod();
 
@@ -78,27 +90,18 @@ public class SampleHandler extends AbstractHandler {
 
 			methodsTargets = null;
 
-			/*for (int i = 0; i < GOLDSET_SIZE; i++) {
-
-				if (i == newMethodsTargets.size()) {
-					break;
-				}
-
-				newMethodsTargets.get(i).moveMethod();
-
-				movedMethods.add(newMethodsTargets.get(i));
-			}*/
-
-			//newMethodsTargets = null;
-
-			// verifyGoldset();
-
+			//Deleta a copia do projeto
+			projectCopy.getProject().delete(true, SingletonNullProgressMonitor.getNullProgressMonitor());
+			
 			openView();
+			
 
 		} catch (OperationCanceledException | CoreException e) {
 
 			e.printStackTrace();
 		}
+		
+		
 
 		return null;
 
@@ -123,7 +126,7 @@ public class SampleHandler extends AbstractHandler {
 		});
 	}
 
-	private IProject getProjectFromWorkspace(ExecutionEvent event) {
+	private IJavaProject getProjectFromWorkspace(ExecutionEvent event) {
 
 		TreeSelection selection = (TreeSelection) HandlerUtil.getCurrentSelection(event);
 
@@ -137,10 +140,10 @@ public class SampleHandler extends AbstractHandler {
 
 		try {
 			jp = (JavaProject) selection.getFirstElement();
-			return jp.getProject();
+			return JavaCore.create(jp.getProject());
 		} catch (ClassCastException e) {
 			p = (Project) selection.getFirstElement();
-			return p.getProject();
+			return JavaCore.create(p.getProject());
 		}
 	}
 
@@ -161,58 +164,36 @@ public class SampleHandler extends AbstractHandler {
 			e.printStackTrace();
 		}
 	}
+	
+	public static IJavaProject cloneProject(IProject iProject) {
+		try {
+			IProgressMonitor m = new NullProgressMonitor();
+			IWorkspaceRoot workspaceRoot = ResourcesPlugin.getWorkspace().getRoot();
+			IProjectDescription projectDescription;
 
-	/*
-	 * private void verifyGoldset() { ArrayList<String[]> goldset =
-	 * readGoldsetFile(); ArrayList<String[]> refactorings =
-	 * readRefactoringsFile(); int count = 0;
-	 * 
-	 * for (String[] refactoring : refactorings) { int i = 0; for (String[]
-	 * methodGoldset : goldset) { i++; if
-	 * (methodGoldset[0].compareTo(refactoring[0]) == 0 &&
-	 * methodGoldset[1].compareTo(refactoring[1]) == 0) { count++;
-	 * System.out.println(i); } } }
-	 * 
-	 * System.out.println(count); }
-	 * 
-	 * private ArrayList<String[]> readRefactoringsFile() {
-	 * 
-	 * ArrayList<String[]> refactorings = new ArrayList<String[]>(); String
-	 * csvFile = System.getProperty("user.home") + "/refactorings.csv"; String
-	 * line = ""; String cvsSplitBy = ",";
-	 * 
-	 * try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
-	 * while ((line = br.readLine()) != null) {
-	 * 
-	 * // use comma as separator refactorings.add(line.split(cvsSplitBy)); //
-	 * String[] country = line.split(cvsSplitBy); //
-	 * System.out.println("Country [code= " + country[4] + " , //
-	 * name=" + country[5] + "]");
-	 * 
-	 * }
-	 * 
-	 * } catch (IOException e) { e.printStackTrace(); }
-	 * 
-	 * return refactorings; }
-	 * 
-	 * private ArrayList<String[]> readGoldsetFile() {
-	 * 
-	 * ArrayList<String[]> goldset = new ArrayList<String[]>(); String csvFile =
-	 * System.getProperty("user.home") + "/goldset.csv"; String line = "";
-	 * String cvsSplitBy = ",";
-	 * 
-	 * try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
-	 * while ((line = br.readLine()) != null) {
-	 * 
-	 * // use comma as separator goldset.add(line.split(cvsSplitBy)); //
-	 * String[] country = line.split(cvsSplitBy); //
-	 * System.out.println("Country [code= " + country[4] + " , //
-	 * name=" + country[5] + "]");
-	 * 
-	 * }
-	 * 
-	 * } catch (IOException e) { e.printStackTrace(); }
-	 * 
-	 * return goldset; }
-	 */
+			projectDescription = iProject.getDescription();
+
+			String cloneName = iProject.getName() + "Temp";
+			// create clone project in workspace
+			IProjectDescription cloneDescription = workspaceRoot.getWorkspace().newProjectDescription(cloneName);
+			// copy project files
+			iProject.copy(cloneDescription, true, m);
+			IProject clone = workspaceRoot.getProject(cloneName);
+
+			cloneDescription.setNatureIds(projectDescription.getNatureIds());
+			cloneDescription.setReferencedProjects(projectDescription.getReferencedProjects());
+			cloneDescription.setDynamicReferences(projectDescription.getDynamicReferences());
+			cloneDescription.setBuildSpec(projectDescription.getBuildSpec());
+			cloneDescription.setReferencedProjects(projectDescription.getReferencedProjects());
+			clone.setDescription(cloneDescription, null);
+			clone.open(m);
+			return JavaCore.create(clone);
+
+		} catch (CoreException e) {
+
+			e.printStackTrace();
+			return null;
+		}
+	}
+
 }

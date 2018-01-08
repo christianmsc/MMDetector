@@ -1,5 +1,7 @@
 package tp1.views;
 
+import org.eclipse.jdt.core.IMethod;
+import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.viewers.ArrayContentProvider;
 import org.eclipse.jface.viewers.ColumnLabelProvider;
@@ -14,6 +16,10 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
+import org.eclipse.ui.IViewPart;
+import org.eclipse.ui.IWorkbenchPage;
+import org.eclipse.ui.PartInitException;
+import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.part.ViewPart;
 
 import mmd.persistence.MethodTargets;
@@ -42,7 +48,7 @@ public class SampleView extends ViewPart {
 				return m.getMethod().getElementName();
 			}
 		});
-		
+
 		col = createTableViewerColumn(titles[1], bounds[1], 1);
 		col.setLabelProvider(new ColumnLabelProvider() {
 			@Override
@@ -51,7 +57,7 @@ public class SampleView extends ViewPart {
 				return m.getMethod().getDeclaringType().getFullyQualifiedName();
 			}
 		});
-		
+
 		col = createTableViewerColumn(titles[2], bounds[2], 2);
 		col.setLabelProvider(new ColumnLabelProvider() {
 			@Override
@@ -107,26 +113,76 @@ public class SampleView extends ViewPart {
 
 		doubleClickAction = new Action() {
 			public void run() {
-				//try {
+				try {
+
+					IMethod methodSelected = null;
+
 					IStructuredSelection selection = (IStructuredSelection) viewer.getSelection();
+
+					MethodTargets methodTarget = (MethodTargets) selection.getFirstElement();
+
+					IMethod[] methods;
+
+					methods = SampleHandler.projectOriginal
+							.findType(methodTarget.getMethod().getDeclaringType().getFullyQualifiedName()).getMethods();
+
+					for (IMethod method : methods) {
+
+						if (method.getElementName().compareTo(methodTarget.getMethod().getElementName()) == 0) {
+							if (method.getNumberOfParameters() == methodTarget.getMethod().getNumberOfParameters()) {
+								String[] parametersMethod = method.getParameterTypes();
+								String[] parametersMethodTarget = methodTarget.getMethod().getParameterTypes();
+								boolean todosBatem = true;
+								for (int i = 0; i < method.getNumberOfParameters(); i++) {
+									if (parametersMethod[i].compareTo(parametersMethodTarget[i]) != 0) {
+										todosBatem = false;
+									}
+								}
+
+								if (todosBatem) {
+									methodSelected = method;
+									break;
+
+								}
+
+							}
+
+						}
+					}
+
 					
-					MethodTargets m = (MethodTargets) selection.getFirstElement();
+					methodTarget.moveMethod(methodSelected);
 					
-					m.moveMethod();
-
-					/*IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
-					IFile file = (IFile) m.getMethod().getCompilationUnit().getResource();
-
-					IEditorDescriptor desc = PlatformUI.getWorkbench().getEditorRegistry()
-							.getDefaultEditor(file.getName());
-					page.openEditor(new FileEditorInput(file), desc.getId());
-
-				} catch (PartInitException e) {
+					SampleHandler.newMethodsTargets.remove(methodTarget);
+					
+					hideView();
+					
+					openView();
+					
+				} catch (JavaModelException e) {
 					e.printStackTrace();
-				}*/
+				}
 
 			}
 		};
+	}
+	
+	private void hideView() {
+		IWorkbenchPage wp = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+
+		// Acha a view :
+		IViewPart myView = wp.findView("tp1.views.SampleView");
+
+		// Esconde a view :
+		wp.hideView(myView);
+	}
+
+	private void openView() {
+		try {
+			PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage().showView("tp1.views.SampleView");
+		} catch (PartInitException e) {
+			e.printStackTrace();
+		}
 	}
 
 }
