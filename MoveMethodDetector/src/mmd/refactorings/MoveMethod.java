@@ -2,10 +2,14 @@ package mmd.refactorings;
 
 import java.util.ArrayList;
 
+import org.eclipse.core.resources.IMarker;
+import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
+import org.eclipse.jdt.core.IJavaModelMarker;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.internal.corext.refactoring.structure.MoveInstanceMethodProcessor;
@@ -26,6 +30,7 @@ import mmd.utils.SingletonNullProgressMonitor;
 public class MoveMethod {
 
 	private MethodTargets methodTargets = null;
+	private int currentNumErrors = 0;
 
 	public boolean ckeckIfMethodCanBeMoved(IMethod method) throws OperationCanceledException, CoreException {
 
@@ -86,12 +91,11 @@ public class MoveMethod {
 					if (status.isOK()) {
 
 						System.out.println("OK!");
-
-						Change undoChange = ref.createChange(new NullProgressMonitor());
-						System.out.print("Undo: ");
-
-						if (undoChange != null) {
-							System.out.println("OK!");
+						
+						if (validTargets.contains(candidate.getType().getQualifiedName())) {
+							System.out.println("Soh que esse destino ja ta salvo entre os destinos possiveis");
+							continue;
+						} else {
 							validTargets.add(candidate.getType().getQualifiedName());
 							CSVUtils.writeValidMoveMethod(
 									method.getDeclaringType().getFullyQualifiedName() + "::" + method.getElementName(),
@@ -99,11 +103,9 @@ public class MoveMethod {
 							temUmValido = true;
 						}
 
-						else {
-							System.out.println("Falhou");
-						}
+					}
 
-					} else {
+					else {
 						System.out.println("Falhou");
 					}
 
@@ -123,6 +125,7 @@ public class MoveMethod {
 
 	public MethodTargets canMethodGoAndCome(MethodTargets m) {
 
+		
 		try {
 			System.out.println("---------------------------------------------------");
 			System.out.println("Analisando metodo " + m.getMethod().getElementName() + " na classe "
@@ -184,6 +187,19 @@ public class MoveMethod {
 				ResourcesPlugin.getWorkspace().run(perform, SingletonNullProgressMonitor.getNullProgressMonitor());
 				System.out.println("OK");
 
+				//se surgir erros ao mover o metodo, ja volta pra classe original
+				int newNumErrors = numErrors(m.getMethod().getJavaProject().getProject());
+				if(newNumErrors > currentNumErrors){
+					
+					System.out.println("Ixi, o projeto da erro quando move, volta o metodo pra classe "+ m.getMethod().getDeclaringType().getElementName());
+					
+					// volta com o metodo para a classe original
+					Change undoChange = perform.getUndoChange();
+					undoChange.perform(SingletonNullProgressMonitor.getNullProgressMonitor());
+					currentNumErrors = numErrors(m.getMethod().getJavaProject().getProject());
+					continue;
+				}
+				
 				// agora, procura-se pelo metodo movido na classe nova
 				IMethod[] methods = m.getMethod().getJavaProject().findType(candidate.getType().getQualifiedName())
 						.getMethods();
@@ -267,6 +283,7 @@ public class MoveMethod {
 				System.out.println("Voltando metodo para " + m.getMethod().getDeclaringType().getElementName());
 				Change undoChange = perform.getUndoChange();
 				undoChange.perform(SingletonNullProgressMonitor.getNullProgressMonitor());
+				refreshNumErrorsProject(m.getMethod().getJavaProject().getProject());
 
 			}
 
@@ -280,8 +297,34 @@ public class MoveMethod {
 			return null;
 		}
 	}
+	
+	private int numErrors(IProject project) {
+		try {
+			IMarker[] markerList = project.findMarkers(IJavaModelMarker.JAVA_MODEL_PROBLEM_MARKER, true,
+					IResource.DEPTH_INFINITE);
+			if (markerList == null || markerList.length == 0) {
+				return 0;
+			}
+			IMarker marker = null;
+			int numErrors = 0;
+			for (IMarker element : markerList) {
+				marker = element;
+				int severity = marker.getAttribute(IMarker.SEVERITY, IMarker.SEVERITY_ERROR);
+				if (severity == IMarker.SEVERITY_ERROR) {
+					numErrors++;
+				}
+			}
+			return numErrors;
+		} catch (CoreException e) {
+			return -1;
+		}
+	}
 
 	public MethodTargets getMethodTargets() {
 		return methodTargets;
+	}
+	
+	public void refreshNumErrorsProject(IProject project){
+		currentNumErrors = numErrors(project);
 	}
 }

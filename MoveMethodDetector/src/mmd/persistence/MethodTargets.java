@@ -66,6 +66,9 @@ public class MethodTargets {
 
 					CSVUtils.writeInGoldset(getMethod().getDeclaringType().getFullyQualifiedName() + "::"
 							+ getMethod().getElementName(), target.getType().getQualifiedName());
+					
+					CSVUtils.writeInGoldset(target.getType().getQualifiedName()+ "::"
+							+ getMethod().getElementName(),getMethod().getDeclaringType().getFullyQualifiedName()  );
 
 					break;
 				}

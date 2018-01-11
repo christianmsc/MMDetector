@@ -62,7 +62,9 @@ public class SampleHandler extends AbstractHandler {
 			IJavaProject projectCopy = cloneProject(projectOriginal.getProject());
 			System.out.println("OK");
 
+			System.out.print("Buscando metodos do projeto... ");
 			getClassesMethods(projectCopy.getProject());
+			System.out.println("OK");
 
 			MoveMethod mv = new MoveMethod();
 
@@ -78,6 +80,7 @@ public class SampleHandler extends AbstractHandler {
 			System.out.println("Métodos que podem ser movidos: "+methodsTargets.size());
 
 			allMethods = null;
+			mv.refreshNumErrorsProject(projectCopy.getProject());
 
 			for (MethodTargets m : methodsTargets) {
 				mt = mv.canMethodGoAndCome(m);
