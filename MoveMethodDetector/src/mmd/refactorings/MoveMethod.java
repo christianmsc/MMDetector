@@ -23,6 +23,7 @@ import org.eclipse.ltk.core.refactoring.RefactoringStatus;
 import org.eclipse.ltk.core.refactoring.participants.MoveRefactoring;
 
 import mmd.persistence.MethodTargets;
+import mmd.persistence.ValidMove;
 import mmd.utils.CSVUtils;
 import mmd.utils.SingletonNullProgressMonitor;
 
@@ -69,7 +70,7 @@ public class MoveMethod {
 					System.out.print("Destino: " + candidate.getType().getName() + ": ");
 
 					if (candidate.getType().isEnum() || candidate.getType().isInterface()) {
-						System.out.println("� enumerado ou interface");
+						System.out.println("� enumerado ou interface");
 						continue;
 					}
 
@@ -91,7 +92,7 @@ public class MoveMethod {
 					if (status.isOK()) {
 
 						System.out.println("OK!");
-						
+
 						if (validTargets.contains(candidate.getType().getQualifiedName())) {
 							System.out.println("Soh que esse destino ja ta salvo entre os destinos possiveis");
 							continue;
@@ -123,21 +124,14 @@ public class MoveMethod {
 		}
 	}
 
-	public MethodTargets canMethodGoAndCome(MethodTargets m) {
+	public ArrayList<ValidMove> canMethodGoAndCome(MethodTargets m) {
 
-		
 		try {
+
+			ArrayList<ValidMove> validMoves = null;
 			System.out.println("---------------------------------------------------");
 			System.out.println("Analisando metodo " + m.getMethod().getElementName() + " na classe "
 					+ m.getMethod().getDeclaringType().getElementName());
-
-			// booleano que so verifica se pra algum target deu certo ir e
-			// voltar
-			boolean peloMenosUmFoi = false;
-
-			// Array que vai armazenar os targets que derem pro metodo ir e
-			// voltar
-			ArrayList<String> validTargets = null;
 
 			// Array que ira armazenar os targets ja encontrados para o metodo
 			ArrayList<IVariableBinding> arrayTargets = new ArrayList<IVariableBinding>();
@@ -160,6 +154,9 @@ public class MoveMethod {
 
 			// laco para cada target que ira verificar se vai e volta
 			for (IVariableBinding candidate : arrayTargets) {
+
+				// bolenano que verifica se da erro quando move
+				boolean erro = false;
 
 				System.out.print("Indo para " + candidate.getType().getName() + "... ");
 
@@ -187,28 +184,29 @@ public class MoveMethod {
 				ResourcesPlugin.getWorkspace().run(perform, SingletonNullProgressMonitor.getNullProgressMonitor());
 				System.out.println("OK");
 
-				//se surgir erros ao mover o metodo, ja volta pra classe original
+				// verifica se surge erros ao mover o metodo
 				int newNumErrors = numErrors(m.getMethod().getJavaProject().getProject());
-				if(newNumErrors > currentNumErrors){
-					
-					System.out.println("Ixi, o projeto da erro quando move, volta o metodo pra classe "+ m.getMethod().getDeclaringType().getElementName());
-					
-					// volta com o metodo para a classe original
-					Change undoChange = perform.getUndoChange();
-					undoChange.perform(SingletonNullProgressMonitor.getNullProgressMonitor());
-					currentNumErrors = numErrors(m.getMethod().getJavaProject().getProject());
-					continue;
+				if (newNumErrors > currentNumErrors) {
+
+					System.out.println("ATENCAO: O projeto da erro quando move!");
+					erro = true;
 				}
-				
+
 				// agora, procura-se pelo metodo movido na classe nova
+				IMethod metodoMovido = null;
 				IMethod[] methods = m.getMethod().getJavaProject().findType(candidate.getType().getQualifiedName())
 						.getMethods();
 
 				for (IMethod methodMoved : methods) {
 
+					// primeiro, acha o metodo com o mesmo nome
 					if (methodMoved.getElementName().compareTo(m.getMethod().getElementName()) == 0) {
 
+						// depois, verifica o numero de parametros
 						if (methodMoved.getNumberOfParameters() == m.getMethod().getNumberOfParameters()) {
+
+							// agora, verifica se os tipos dos parametros e a
+							// ordem sao os mesmos
 							String[] parametersMethod = methodMoved.getParameterTypes();
 							String[] parametersMethodTarget = m.getMethod().getParameterTypes();
 							boolean todosBatem = true;
@@ -219,63 +217,72 @@ public class MoveMethod {
 							}
 
 							if (todosBatem) {
-
-								System.out.println("Agora o metodo " + methodMoved.getElementName() + " ta na classe "
-										+ methodMoved.getDeclaringType().getElementName());
-
-								// agora que achou o metodo, ve as novas classes
-								// que ele pode ser movido
-								processor = new MoveInstanceMethodProcessor(methodMoved, JavaPreferencesSettings
-										.getCodeGenerationSettings(methodMoved.getJavaProject()));
-
-								processor.checkInitialConditions(SingletonNullProgressMonitor.getNullProgressMonitor());
-
-								IVariableBinding[] newTargets = processor.getPossibleTargets();
-
-								System.out.print("O metodo consegue voltar para "
-										+ m.getMethod().getDeclaringType().getElementName() + "? ");
-								for (IVariableBinding target : newTargets) {
-
-									// se um dos targets for a classe antiga, ve
-									// se da pra mover pra la
-									if (target.getType().getQualifiedName()
-											.compareTo(m.getMethod().getDeclaringType().getFullyQualifiedName()) == 0) {
-
-										System.out.print("Aparentemente sim, vamos ver... ");
-
-										processor.setTarget(target);
-										processor.setInlineDelegator(true);
-										processor.setRemoveDelegator(true);
-										processor.setDeprecateDelegates(false);
-
-										Refactoring ref = new MoveRefactoring(processor);
-										RefactoringStatus status = null;
-
-										status = ref.checkAllConditions(new NullProgressMonitor());
-
-										// se da pra mover, aleluia! salva isso!
-										if (status.isOK()) {
-											System.out.println("Sim =)");
-											if (validTargets == null) {
-												validTargets = new ArrayList<String>();
-											}
-
-											validTargets.add(candidate.getType().getQualifiedName());
-											peloMenosUmFoi = true;
-
-										} else {
-											System.out.println("Nem deu =P");
-										}
-									} else {
-										System.out.println();
-										System.out.println("Da naum =(");
-									}
-								}
-
+								metodoMovido = methodMoved;
 								break;
 							}
 						}
+					}
+				}
 
+				if (metodoMovido != null) {
+
+					System.out.println("Agora o metodo " + metodoMovido.getElementName() + " ta na classe "
+							+ metodoMovido.getDeclaringType().getElementName());
+
+					// agora que achou o metodo, ve as novas classes
+					// que ele pode ser movido
+					processor = new MoveInstanceMethodProcessor(metodoMovido,
+							JavaPreferencesSettings.getCodeGenerationSettings(metodoMovido.getJavaProject()));
+
+					processor.checkInitialConditions(SingletonNullProgressMonitor.getNullProgressMonitor());
+
+					IVariableBinding[] newTargets = processor.getPossibleTargets();
+
+					System.out.print("O metodo consegue voltar para "
+							+ m.getMethod().getDeclaringType().getElementName() + "? ");
+
+					boolean achouClasseAntiga = false;
+
+					for (IVariableBinding target : newTargets) {
+
+						// se um dos targets for a classe antiga, ve
+						// se da pra mover pra la
+						if (target.getType().getQualifiedName()
+								.compareTo(m.getMethod().getDeclaringType().getFullyQualifiedName()) == 0) {
+
+							achouClasseAntiga = true;
+							System.out.print("Aparentemente sim, vamos ver... ");
+							processor.setTarget(target);
+							processor.setInlineDelegator(true);
+							processor.setRemoveDelegator(true);
+							processor.setDeprecateDelegates(false);
+
+							Refactoring ref = new MoveRefactoring(processor);
+							RefactoringStatus status = null;
+
+							status = ref.checkAllConditions(new NullProgressMonitor());
+
+							// se da pra mover, aleluia! salva isso!
+							if (status.isOK()) {
+								System.out.println("Sim =)");
+								if (validMoves == null) {
+									validMoves = new ArrayList<ValidMove>();
+								}
+
+								validMoves.add(
+										new ValidMove(m.getMethod(), candidate.getType().getQualifiedName(), erro));
+
+							} else {
+								System.out.println("Nem deu =P");
+							}
+
+							break;
+
+						}
+					}
+
+					if (!achouClasseAntiga) {
+						System.out.println("Não, nem aparece como opção a ser movida =(");
 					}
 				}
 
@@ -287,17 +294,13 @@ public class MoveMethod {
 
 			}
 
-			if (peloMenosUmFoi) {
-				return new MethodTargets(m.getMethod(), validTargets);
-			} else {
-				return null;
-			}
+			return validMoves;
 
 		} catch (Exception e) {
 			return null;
 		}
 	}
-	
+
 	private int numErrors(IProject project) {
 		try {
 			IMarker[] markerList = project.findMarkers(IJavaModelMarker.JAVA_MODEL_PROBLEM_MARKER, true,
@@ -323,8 +326,8 @@ public class MoveMethod {
 	public MethodTargets getMethodTargets() {
 		return methodTargets;
 	}
-	
-	public void refreshNumErrorsProject(IProject project){
+
+	public void refreshNumErrorsProject(IProject project) {
 		currentNumErrors = numErrors(project);
 	}
 }

@@ -23,6 +23,7 @@ import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.part.ViewPart;
 
 import mmd.persistence.MethodTargets;
+import mmd.persistence.ValidMove;
 import tp1.handlers.SampleHandler;
 
 public class SampleView extends ViewPart {
@@ -33,18 +34,18 @@ public class SampleView extends ViewPart {
 	private Action doubleClickAction;
 
 	public void createPartControl(Composite parent) {
-		GridLayout layout = new GridLayout(3, false);
+		GridLayout layout = new GridLayout(4, false);
 		parent.setLayout(layout);
 		viewer = new TableViewer(parent, SWT.MULTI | SWT.H_SCROLL | SWT.V_SCROLL | SWT.FULL_SELECTION | SWT.BORDER);
 
-		String[] titles = { "Método", "Classe Original", "Classe Nova" };
-		int[] bounds = { 200, 200, 200 };
+		String[] titles = { "Metodo", "Classe Original", "Classe Nova", "Da Erro Ao Mover?" };
+		int[] bounds = { 200, 200, 200, 150 };
 
 		TableViewerColumn col = createTableViewerColumn(titles[0], bounds[0], 0);
 		col.setLabelProvider(new ColumnLabelProvider() {
 			@Override
 			public String getText(Object element) {
-				MethodTargets m = (MethodTargets) element;
+				ValidMove m = (ValidMove) element;
 				return m.getMethod().getElementName();
 			}
 		});
@@ -53,7 +54,7 @@ public class SampleView extends ViewPart {
 		col.setLabelProvider(new ColumnLabelProvider() {
 			@Override
 			public String getText(Object element) {
-				MethodTargets m = (MethodTargets) element;
+				ValidMove m = (ValidMove) element;
 				return m.getMethod().getDeclaringType().getFullyQualifiedName();
 			}
 		});
@@ -62,8 +63,22 @@ public class SampleView extends ViewPart {
 		col.setLabelProvider(new ColumnLabelProvider() {
 			@Override
 			public String getText(Object element) {
-				MethodTargets m = (MethodTargets) element;
-				return m.getTargets().get(0);
+				ValidMove m = (ValidMove) element;
+				return m.getTarget();
+			}
+		});
+		
+		col = createTableViewerColumn(titles[3], bounds[3], 3);
+		col.setLabelProvider(new ColumnLabelProvider() {
+			@Override
+			public String getText(Object element) {
+				ValidMove m = (ValidMove) element;
+				if(m.isMoveWithError()){
+					return "Sim";
+				}
+				else{
+					return "Nao";
+				}
 			}
 		});
 
@@ -154,6 +169,12 @@ public class SampleView extends ViewPart {
 					methodTarget.moveMethod(methodSelected);
 					
 					SampleHandler.newMethodsTargets.remove(methodTarget);
+					
+					for(ValidMove validMove : SampleHandler.newMethodsTargets){
+						if(validMove.getMethod().equals(methodSelected)){
+							SampleHandler.newMethodsTargets.remove(validMove);
+						}
+					}
 					
 					hideView();
 					

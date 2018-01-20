@@ -33,6 +33,7 @@ import org.eclipse.ui.handlers.HandlerUtil;
 
 import mmd.ast.DependencyVisitor;
 import mmd.persistence.MethodTargets;
+import mmd.persistence.ValidMove;
 import mmd.refactorings.MoveMethod;
 import mmd.utils.SingletonNullProgressMonitor;
 
@@ -41,7 +42,7 @@ public class SampleHandler extends AbstractHandler {
 
 	private ArrayList<IMethod> allMethods;
 	private ArrayList<MethodTargets> methodsTargets;
-	public static ArrayList<MethodTargets> newMethodsTargets;
+	public static ArrayList<ValidMove> newMethodsTargets;
 	public static IJavaProject projectOriginal;
 	
 	@Override
@@ -50,8 +51,8 @@ public class SampleHandler extends AbstractHandler {
 
 			allMethods = new ArrayList<IMethod>();
 			methodsTargets = new ArrayList<MethodTargets>();
-			newMethodsTargets = new ArrayList<MethodTargets>();
-			MethodTargets mt;
+			newMethodsTargets = new ArrayList<ValidMove>();
+			
 
 			hideView();
 
@@ -77,19 +78,20 @@ public class SampleHandler extends AbstractHandler {
 
 			}
 			
-			System.out.println("Métodos que podem ser movidos: "+methodsTargets.size());
+			System.out.println("Metodos que podem ser movidos: "+methodsTargets.size());
 
 			allMethods = null;
 			mv.refreshNumErrorsProject(projectCopy.getProject());
-
+			ArrayList<ValidMove> auxValidMoves;
+			
 			for (MethodTargets m : methodsTargets) {
-				mt = mv.canMethodGoAndCome(m);
-				if (mt != null) {
-					newMethodsTargets.add(mt);
+				auxValidMoves = mv.canMethodGoAndCome(m);
+				if (auxValidMoves != null) {
+					newMethodsTargets.addAll(auxValidMoves);
 				}
 			}
 			
-			System.out.println("Métodos que podem ir e voltar: "+newMethodsTargets.size());
+			System.out.println("Metodos que podem ir e voltar: "+newMethodsTargets.size());
 
 			methodsTargets = null;
 
