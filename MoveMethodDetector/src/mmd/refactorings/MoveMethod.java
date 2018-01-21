@@ -70,7 +70,7 @@ public class MoveMethod {
 					System.out.print("Destino: " + candidate.getType().getName() + ": ");
 
 					if (candidate.getType().isEnum() || candidate.getType().isInterface()) {
-						System.out.println("� enumerado ou interface");
+						System.out.println("Eh enumerado ou interface");
 						continue;
 					}
 
@@ -98,9 +98,6 @@ public class MoveMethod {
 							continue;
 						} else {
 							validTargets.add(candidate.getType().getQualifiedName());
-							CSVUtils.writeValidMoveMethod(
-									method.getDeclaringType().getFullyQualifiedName() + "::" + method.getElementName(),
-									candidate.getType().getQualifiedName());
 							temUmValido = true;
 						}
 
@@ -199,28 +196,12 @@ public class MoveMethod {
 
 				for (IMethod methodMoved : methods) {
 
-					// primeiro, acha o metodo com o mesmo nome
+					// acha o metodo com o mesmo nome
 					if (methodMoved.getElementName().compareTo(m.getMethod().getElementName()) == 0) {
 
-						// depois, verifica o numero de parametros
-						if (methodMoved.getNumberOfParameters() == m.getMethod().getNumberOfParameters()) {
+						metodoMovido = methodMoved;
+						break;
 
-							// agora, verifica se os tipos dos parametros e a
-							// ordem sao os mesmos
-							String[] parametersMethod = methodMoved.getParameterTypes();
-							String[] parametersMethodTarget = m.getMethod().getParameterTypes();
-							boolean todosBatem = true;
-							for (int i = 0; i < methodMoved.getNumberOfParameters(); i++) {
-								if (parametersMethod[i].compareTo(parametersMethodTarget[i]) != 0) {
-									todosBatem = false;
-								}
-							}
-
-							if (todosBatem) {
-								metodoMovido = methodMoved;
-								break;
-							}
-						}
 					}
 				}
 
@@ -272,6 +253,10 @@ public class MoveMethod {
 								validMoves.add(
 										new ValidMove(m.getMethod(), candidate.getType().getQualifiedName(), erro));
 
+								CSVUtils.writeValidMoveMethod(
+										m.getMethod().getDeclaringType().getFullyQualifiedName() + "::" + m.getMethod().getElementName(),
+										candidate.getType().getQualifiedName());
+								
 							} else {
 								System.out.println("Nem deu =P");
 							}

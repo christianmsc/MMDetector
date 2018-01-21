@@ -13,7 +13,7 @@ public class CSVUtils {
 		FileWriter fileWriter = null;
 
 		try {
-			fileWriter = new FileWriter(System.getProperty("user.home") + "/refactorings.csv", true);
+			fileWriter = new FileWriter(System.getProperty("user.dir") + "/refactorings.csv", true);
 
 			fileWriter.append(method);
 			fileWriter.append(COMMA_DELIMITER);

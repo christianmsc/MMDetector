@@ -22,7 +22,6 @@ import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.part.ViewPart;
 
-import mmd.persistence.MethodTargets;
 import mmd.persistence.ValidMove;
 import tp1.handlers.SampleHandler;
 
@@ -67,16 +66,15 @@ public class SampleView extends ViewPart {
 				return m.getTarget();
 			}
 		});
-		
+
 		col = createTableViewerColumn(titles[3], bounds[3], 3);
 		col.setLabelProvider(new ColumnLabelProvider() {
 			@Override
 			public String getText(Object element) {
 				ValidMove m = (ValidMove) element;
-				if(m.isMoveWithError()){
+				if (m.isMoveWithError()) {
 					return "Sim";
-				}
-				else{
+				} else {
 					return "Nao";
 				}
 			}
@@ -134,7 +132,7 @@ public class SampleView extends ViewPart {
 
 					IStructuredSelection selection = (IStructuredSelection) viewer.getSelection();
 
-					MethodTargets methodTarget = (MethodTargets) selection.getFirstElement();
+					ValidMove methodTarget = (ValidMove) selection.getFirstElement();
 
 					IMethod[] methods;
 
@@ -165,21 +163,20 @@ public class SampleView extends ViewPart {
 						}
 					}
 
-					
 					methodTarget.moveMethod(methodSelected);
-					
+
 					SampleHandler.newMethodsTargets.remove(methodTarget);
-					
-					for(ValidMove validMove : SampleHandler.newMethodsTargets){
-						if(validMove.getMethod().equals(methodSelected)){
+
+					for (ValidMove validMove : SampleHandler.newMethodsTargets) {
+						if (validMove.getMethod().equals(methodSelected)) {
 							SampleHandler.newMethodsTargets.remove(validMove);
 						}
 					}
-					
+
 					hideView();
-					
+
 					openView();
-					
+
 				} catch (JavaModelException e) {
 					e.printStackTrace();
 				}
@@ -187,7 +184,7 @@ public class SampleView extends ViewPart {
 			}
 		};
 	}
-	
+
 	private void hideView() {
 		IWorkbenchPage wp = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
 

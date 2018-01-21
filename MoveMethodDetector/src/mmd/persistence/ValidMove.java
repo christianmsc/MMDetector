@@ -68,9 +68,6 @@ public class ValidMove {
 
 					ResourcesPlugin.getWorkspace().run(perform, SingletonNullProgressMonitor.getNullProgressMonitor());
 
-					CSVUtils.writeInGoldset(getMethod().getDeclaringType().getFullyQualifiedName() + "::"
-							+ getMethod().getElementName(), target.getType().getQualifiedName());
-
 					CSVUtils.writeInGoldset(target.getType().getQualifiedName() + "::" + getMethod().getElementName(),
 							getMethod().getDeclaringType().getFullyQualifiedName());
 
